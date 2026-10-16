@@ -711,24 +711,22 @@ class JobLike:
 
 
 UNIQUE_DATASET_USER_USAGE = """
-WITH per_user_histories AS
-(
-    SELECT id
-    FROM history
-    WHERE user_id = :id
-        AND NOT purged
-),
-per_hist_hdas AS (
-    SELECT DISTINCT dataset_id
+WITH per_hist_hdas AS (
+    SELECT DISTINCT history_dataset_association.dataset_id
     FROM history_dataset_association
-    WHERE NOT purged
-        AND history_id IN (SELECT id FROM per_user_histories)
+    JOIN history ON history.id = history_dataset_association.history_id
+    WHERE history.user_id = :id
+        AND NOT history.purged
+        AND NOT history_dataset_association.purged
 )
 SELECT COALESCE(SUM(COALESCE(dataset.total_size, dataset.file_size, 0)), 0)
 FROM dataset
-LEFT OUTER JOIN library_dataset_dataset_association ON dataset.id = library_dataset_dataset_association.dataset_id
 WHERE dataset.id IN (SELECT dataset_id FROM per_hist_hdas)
-    AND library_dataset_dataset_association.id IS NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM library_dataset_dataset_association
+        WHERE library_dataset_dataset_association.dataset_id = dataset.id
+    )
     AND (dataset.object_store_id NOT LIKE '{user_objects_scheme}%' OR dataset.object_store_id IS NULL)
     {and_dataset_condition}
 """
@@ -807,24 +805,22 @@ WHERE user_id = :id AND quota_source_label IS NOT NULL
 
 
 UNIQUE_DATASET_USER_USAGE_PER_OBJECTSTORE = """
-WITH per_user_histories AS
-(
-    SELECT id
-    FROM history
-    WHERE user_id = :id
-        AND NOT purged
-),
-per_hist_hdas AS (
-    SELECT DISTINCT dataset_id
+WITH per_hist_hdas AS (
+    SELECT DISTINCT history_dataset_association.dataset_id
     FROM history_dataset_association
-    WHERE NOT purged
-        AND history_id IN (SELECT id FROM per_user_histories)
+    JOIN history ON history.id = history_dataset_association.history_id
+    WHERE history.user_id = :id
+        AND NOT history.purged
+        AND NOT history_dataset_association.purged
 )
 SELECT SUM(COALESCE(dataset.total_size, dataset.file_size, 0)) as usage, dataset.object_store_id
 FROM dataset
-LEFT OUTER JOIN library_dataset_dataset_association ON dataset.id = library_dataset_dataset_association.dataset_id
 WHERE dataset.id IN (SELECT dataset_id FROM per_hist_hdas)
-    AND library_dataset_dataset_association.id IS NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM library_dataset_dataset_association
+        WHERE library_dataset_dataset_association.dataset_id = dataset.id
+    )
 GROUP BY dataset.object_store_id
 """
 

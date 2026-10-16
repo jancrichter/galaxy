@@ -118,6 +118,17 @@ class TestCalculateUsage(BaseModelTestCase):
 
         assert u.calculate_disk_usage_default_source(self.object_store) == 10
 
+    def test_calculate_usage_excludes_library_datasets(self):
+        u = self.u
+
+        self._add_dataset(10)
+        d2 = self._add_dataset(30)
+        # This dataset is also part of a data library and should not be counted
+        ldda = model.LibraryDatasetDatasetAssociation(extension="txt", dataset=d2.dataset)
+        self.persist(ldda)
+
+        assert u.calculate_disk_usage_default_source(self.object_store) == 10
+
     def test_calculate_usage_with_user_provided_storage(self):
         u = self.u
 
