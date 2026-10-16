@@ -327,7 +327,7 @@ def to_cwl(
         # I think the following two checks are needed but they may
         # not be needed.
         if step:
-            if not value.dataset.in_ready_state():
+            if value.is_pending or not value.dataset.in_ready_state():
                 why = f"dataset [{value.id}] is needed for valueFrom expression and is non-ready"
                 raise DelayedWorkflowEvaluation(
                     why=why, dependencies=[SchedulingDependency(DependencyType.HDA, value.id)]

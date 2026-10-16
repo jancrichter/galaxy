@@ -355,6 +355,30 @@ def test_to_cwl_purged_dataset():
         modules.to_cwl(hda, [], step)
 
 
+def test_to_cwl_hda_setting_metadata_delays():
+    # Expression tools (e.g. pick_value with a change_datatype PJA) share the picked dataset, which is already OK,
+    # while the HDA itself is SETTING_METADATA until the celery task finishes.
+    hda = model.HistoryDatasetAssociation(create_dataset=True, flush=False)
+    hda.id = 1
+    hda.dataset.state = model.Dataset.states.OK
+    hda._state = model.Dataset.states.SETTING_METADATA
+    step = model.WorkflowStep()
+    step.id = 1
+    with pytest.raises(modules.DelayedWorkflowEvaluation):
+        modules.to_cwl(hda, [], step)
+
+
+def test_to_cwl_hda_failed_metadata_fails():
+    hda = model.HistoryDatasetAssociation(create_dataset=True, flush=False)
+    hda.id = 1
+    hda.dataset.state = model.Dataset.states.OK
+    hda._state = model.Dataset.states.FAILED_METADATA
+    step = model.WorkflowStep()
+    step.id = 1
+    with pytest.raises(modules.FailWorkflowEvaluation):
+        modules.to_cwl(hda, [], step)
+
+
 def test_to_cwl_nested_collection():
     hda = model.HistoryDatasetAssociation(create_dataset=True, flush=False)
     hda.dataset.state = model.Dataset.states.OK
