@@ -205,6 +205,11 @@ class PortableDirectoryMetadataGenerator(MetadataCollectionStrategy):
             outputs[name] = {
                 "filename_override": _get_filename_override(output_fnames, dataset.get_file_name(sync_cache=False)),
                 "validate": validate_outputs,
+                # Dataset outputs of expression tools hold a {"src": "hda", "id": ...} reference at this point,
+                # ExpressionTool.exec_after_process replaces it with the referenced dataset afterwards.
+                "skip_set_meta": tool is not None
+                and tool.tool_type == "expression"
+                and getattr(tool.outputs.get(name), "output_type", None) == "data",
                 "object_store_store_by": dataset.dataset.store_by,
                 "id": dataset.id,
                 "model_class": (

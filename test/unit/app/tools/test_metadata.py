@@ -157,6 +157,37 @@ class TestMetadata(TestCase, tools_support.UsesTools):
         assert output_dataset.metadata.data_lines == 2
         assert output_dataset.metadata.sequences == 1
 
+    @pytest.mark.parametrize("strategy", ["directory", "extended"])
+    def test_expression_tool_data_output_skips_set_meta(self, strategy):
+        # The file of a dataset output of an expression tool is only a reference that is replaced after the job,
+        # datatypes must not validate it or derive metadata from it.
+        self.app.config.metadata_strategy = strategy
+        source_file_name = os.path.join(galaxy_directory(), "test/functional/tools/expression_pick_larger_file.xml")
+        self._init_tool_for_path(source_file_name)
+        output_dataset = self._create_output_dataset(extension="fasta")
+        sa_session = self.app.model.session
+        sa_session.commit()
+        command = self.metadata_command({"larger_file": output_dataset})
+        # would be counted as one sequence if set_meta ran
+        self._write_output_dataset_contents(output_dataset, ">seq1\nGCTGCATG\n")
+        self._write_job_files()
+        self.exec_metadata_command(command)
+        assert self.metadata_compute_strategy
+        metadata_set_successfully = self.metadata_compute_strategy.external_metadata_set_successfully(
+            output_dataset,
+            "larger_file",
+            sa_session,
+            working_directory=self.job_working_directory,
+        )
+        assert metadata_set_successfully
+        self.metadata_compute_strategy.load_metadata(
+            output_dataset,
+            "larger_file",
+            sa_session,
+            working_directory=self.job_working_directory,
+        )
+        assert not output_dataset.metadata.sequences
+
     def test_primary_dataset_output_extension_directory(self):
         self.app.config.metadata_strategy = "directory"
         self._test_primary_dataset_output_extension()
